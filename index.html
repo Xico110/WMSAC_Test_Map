@@ -349,6 +349,35 @@
         document.getElementById("all").appendChild(col2);
         col1.appendChild(mapDiv)
         
+// --- RESET ALL FILTERS BUTTON ---
+var reset_All = document.createElement('div');
+reset_All.innerHTML = 'RESET ALL FILTERS';
+reset_All.className = 'filterlabel';
+reset_All.style.cssText = 'background-color: #d9534f !important; color: white !important; border: none !important; width: 90%; margin: 10px auto; display: block; text-align: center; padding: 8px 0; font-weight: bold; cursor: pointer; border-radius: 4px;';
+
+reset_All.onclick = function() {
+    // Clear Year selection
+    var yearOpts = document.getElementById("sel_Year").options;
+    for (var i = 0; i < yearOpts.length; i++) { yearOpts[i].selected = false; }
+
+    // Clear Cause selection
+    var causeOpts = document.getElementById("sel_Cause").options;
+    for (var i = 0; i < causeOpts.length; i++) { causeOpts[i].selected = false; }
+
+    // Clear Habitat selection
+    var habOpts = document.getElementById("sel_Habitat").options;
+    for (var i = 0; i < habOpts.length; i++) { habOpts[i].selected = false; }
+
+    // Clear Severity selection
+    var sevOpts = document.getElementById("sel_Severity").options;
+    for (var i = 0; i < sevOpts.length; i++) { sevOpts[i].selected = false; }
+
+    // Re-run filter logic to show all features on map
+    filterFunc();
+};
+
+document.getElementById("menu").appendChild(reset_All);
+
         var Filters = {"Year": "str","Cause": "str","Habitat": "str","Severity": "str"};
         function filterFunc() {
           map.eachLayer(function(lyr){
@@ -399,7 +428,7 @@
 
             sel_Year = document.createElement('select');
             sel_Year.multiple = true;
-            sel_Year.size = 11;
+            sel_Year.size = 8;
             sel_Year.id = "sel_Year";
             sel_Year.onchange = function(){filterFunc()};
 
@@ -480,7 +509,7 @@
 
             sel_Habitat = document.createElement('select');
             sel_Habitat.multiple = true;
-            sel_Habitat.size = 11;
+            sel_Habitat.size = 8;
             sel_Habitat.id = "sel_Habitat";
             sel_Habitat.onchange = function(){filterFunc()};
 
