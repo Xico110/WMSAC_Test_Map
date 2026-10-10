@@ -210,11 +210,7 @@ select[multiple],
     overflow-y: hidden !important;
 }
 
-/* Hide scrollbars specifically for WebKit browsers (Chrome, Edge, Safari) */
-select[multiple]::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-}
+
 /* Style filter labels as prominent section headings above the boxes */
 .filterselect div {
     font-weight: bold !important;
