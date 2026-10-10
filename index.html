@@ -41,7 +41,6 @@
         <link rel="stylesheet" href="css/qgis2web.css">
         <link rel="stylesheet" href="css/fontawesome-all.min.css">
         <link rel="stylesheet" href="css/filter.css">
-<link rel="stylesheet" href="css/nouislider.min.css">
         <link rel="stylesheet" href="css/leaflet.photon.css">
         <style>
         html, body, #map {
@@ -70,14 +69,13 @@
         <script src="js/labels.js"></script>
         <script src="js/leaflet.photon.js"></script>
         <script src="js/tailDT.js"></script>
-<script src="js/nouislider.min.js"></script>
-<script src="js/wNumb.js"></script>
+        <script src="js/wNumb.js"></script>
         <script src="data/WicklowMountainsSAC_1.js"></script>
         <script src="data/WMNPFireRecords_2.js"></script>
         <script>
         var map = L.map('map', {
             zoomControl:false, maxZoom:28, minZoom:1
-        }).fitBounds([[52.92493421521855,-6.80395025535586],[53.2404799651514,-5.86923296075254]]);
+        }).fitBounds([[52.96917314372416,-6.666159848486134],[53.23562530571082,-6.166858444168045]]);
         var hash = new L.Hash(map);
         map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
         var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
@@ -106,7 +104,6 @@
                     popup._contentNode.classList.add('media');
                     var img = popup._contentNode.querySelector('td img');
                     if (img) {
-                        // If already loaded (cache), update immediately
                         if (img.complete && img.naturalHeight > 0) {
                             popup.update();
                         } else {
@@ -138,7 +135,6 @@
                     video.style.maxWidth = "60vw";
                     imgTd.parentNode.replaceChild(video, imgTd);
                     popup._contentNode.classList.add('media');
-                    // Aggiorna il popup quando il video carica i metadati
                     video.addEventListener('loadedmetadata', function() {
                         popup.update();
                     });
@@ -198,10 +194,10 @@
                     </tr>\
                 </table>';
             var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-			layer.on('popupopen', function(e) {
-				addClassToPopupIfMedia(content, e.popup);
-			});
-			layer.bindPopup(content, { maxHeight: 400 });
+   layer.on('popupopen', function(e) {
+    addClassToPopupIfMedia(content, e.popup);
+   });
+   layer.bindPopup(content, { maxHeight: 400 });
         }
 
         var pattern_WicklowMountainsSAC_1_0 = new L.StripePattern({
@@ -253,7 +249,7 @@
             var popupContent = '<table>\
                     <tr>\
                         <th scope="row">Date</th>\
-                        <td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td class="visible-with-data" id="Date">' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">Location</th>\
@@ -277,14 +273,14 @@
                     </tr>\
                     <tr>\
                         <th scope="row">Notes</th>\
-                        <td class="visible-with-data" id="Notes">' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td>' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                 </table>';
             var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-			layer.on('popupopen', function(e) {
-				addClassToPopupIfMedia(content, e.popup);
-			});
-			layer.bindPopup(content, { maxHeight: 400 });
+   layer.on('popupopen', function(e) {
+    addClassToPopupIfMedia(content, e.popup);
+   });
+   layer.bindPopup(content, { maxHeight: 400 });
         }
 
         function style_WMNPFireRecords_2_0() {
@@ -329,12 +325,6 @@
             {label: '<img src="legend/WicklowMountainsSAC_1.png" /> Wicklow Mountains SAC', layer: layer_WicklowMountainsSAC_1},
             {label: "Google Satellite Hybrid", layer: layer_GoogleSatelliteHybrid_0},]
         var lay = L.control.layers.tree(null, overlaysTree,{
-            //namedToggle: true,
-            //selectorBack: false,
-            //closedSymbol: '&#8862; &#x1f5c0;',
-            //openedSymbol: '&#8863; &#x1f5c1;',
-            //collapseAll: 'Collapse all',
-            //expandAll: 'Expand all',
             collapsed: true,
         });
         lay.addTo(map);
@@ -358,7 +348,8 @@
         document.getElementById("all").appendChild(col1);
         document.getElementById("all").appendChild(col2);
         col1.appendChild(mapDiv)
-        var Filters = {"Cause": "str","Habitat": "str","Severity": "str"};
+        
+        var Filters = {"Year": "str","Cause": "str","Habitat": "str","Severity": "str"};
         function filterFunc() {
           map.eachLayer(function(lyr){
           if ("options" in lyr && "dataVar" in lyr["options"]){
@@ -377,67 +368,13 @@
                         for (i = features.length - 1;
                           i >= 0; --i){
                           if (selection.indexOf(
-                          features[i].properties[key])<0
+                          String(features[i].properties[key]))<0
                           && selection.length>0) {
                           features.splice(i,1);
                           }
                         }
                       }
                     } catch(err){
-                  }
-                }
-                if (Filters[key] == "int"){
-                  sliderVals =  document.getElementById(
-                    "div_" + keyS).noUiSlider.get();
-                  try{
-                    if (key in features[0].properties){
-                    for (i = features.length - 1; i >= 0; --i){
-                      if (parseInt(features[i].properties[key])
-                          < sliderVals[0]
-                          || parseInt(features[i].properties[key])
-                          > sliderVals[1]){
-                            features.splice(i,1);
-                          }
-                        }
-                      }
-                    } catch(err){
-                    }
-                  }
-                if (Filters[key] == "real"){
-                  sliderVals =  document.getElementById(
-                    "div_" + keyS).noUiSlider.get();
-                  try{
-                    if (key in features[0].properties){
-                    for (i = features.length - 1; i >= 0; --i){
-                      if (features[i].properties[key]
-                          < sliderVals[0]
-                          || features[i].properties[key]
-                          > sliderVals[1]){
-                            features.splice(i,1);
-                          }
-                        }
-                      }
-                    } catch(err){
-                    }
-                  }
-                if (Filters[key] == "date"
-                  || Filters[key] == "datetime"
-                  || Filters[key] == "time"){
-                  try{
-                    if (key in features[0].properties){
-                      HTMLkey = key.replace(/[&\\/\\#,+()$~%.'":*?<>{} ]/g, '');
-                      startdate = document.getElementById("dat_" +
-                        HTMLkey + "_date1").value.replace(" ", "T");
-                      enddate = document.getElementById("dat_" +
-                        HTMLkey + "_date2").value.replace(" ", "T");
-                      for (i = features.length - 1; i >= 0; --i){
-                        if (features[i].properties[key] < startdate
-                          || features[i].properties[key] > enddate){
-                          features.splice(i,1);
-                        }
-                      }
-                    }
-                  } catch(err){
                   }
                 }
               }
@@ -448,28 +385,75 @@
           }
           })
         }
-            document.getElementById("menu").appendChild(
-                document.createElement("div"));
+            // --- YEAR FILTER (LIST BOX) ---
+            document.getElementById("menu").appendChild(document.createElement("div"));
+            var div_Year = document.createElement('div');
+            div_Year.id = "div_Year";
+            div_Year.className = "filterselect";
+            document.getElementById("menu").appendChild(div_Year);
+
+            var lab_Year = document.createElement('div');
+            lab_Year.innerHTML = 'Year';
+            lab_Year.className = 'filterlabel';
+            div_Year.appendChild(lab_Year);
+
+            sel_Year = document.createElement('select');
+            sel_Year.multiple = true;
+            sel_Year.size = 11;
+            sel_Year.id = "sel_Year";
+            sel_Year.onchange = function(){filterFunc()};
+
+            var Year_options_str = "";
+            Year_options_str += '<option value="2016">2016</option>';
+            Year_options_str += '<option value="2017">2017</option>';
+            Year_options_str += '<option value="2018">2018</option>';
+            Year_options_str += '<option value="2019">2019</option>';
+            Year_options_str += '<option value="2020">2020</option>';
+            Year_options_str += '<option value="2021">2021</option>';
+            Year_options_str += '<option value="2022">2022</option>';
+            Year_options_str += '<option value="2023">2023</option>';
+            Year_options_str += '<option value="2024">2024</option>';
+            Year_options_str += '<option value="2025">2025</option>';
+            Year_options_str += '<option value="2026">2026</option>';
+            sel_Year.innerHTML = Year_options_str;
+            div_Year.appendChild(sel_Year);
+
+            var reset_Year = document.createElement('div');
+            reset_Year.innerHTML = 'clear filter';
+            reset_Year.className = 'filterlabel';
+            reset_Year.onclick = function() {
+                var options = document.getElementById("sel_Year").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Year.appendChild(reset_Year);
+
+            // --- CAUSE FILTER ---
+            document.getElementById("menu").appendChild(document.createElement("div"));
             var div_Cause = document.createElement('div');
             div_Cause.id = "div_Cause";
             div_Cause.className= "filterselect";
             document.getElementById("menu").appendChild(div_Cause);
-            sel_Cause = document.createElement('select');
-            sel_Cause.multiple = true;
-            sel_Cause.size = 2;
-            sel_Cause.id = "sel_Cause";
-            var Cause_options_str = "";
-            sel_Cause.onchange = function(){filterFunc()};
-            Cause_options_str  += '<option value="Accidental/Negligence">Accidental/Negligence</option>';
-            Cause_options_str  += '<option value="Agricultural">Agricultural</option>';
-            sel_Cause.innerHTML = Cause_options_str;
-            
+
             var lab_Cause = document.createElement('div');
             lab_Cause.innerHTML = 'Cause';
             lab_Cause.className = 'filterlabel';
             div_Cause.appendChild(lab_Cause);
 
-div_Cause.appendChild(sel_Cause);
+            sel_Cause = document.createElement('select');
+            sel_Cause.multiple = true;
+            sel_Cause.size = 2;
+            sel_Cause.id = "sel_Cause";
+            sel_Cause.onchange = function(){filterFunc()};
+
+            var Cause_options_str = "";
+            Cause_options_str += '<option value="Accidental/Negligence">Accidental/Negligence</option>';
+            Cause_options_str += '<option value="Agricultural">Agricultural</option>';
+            sel_Cause.innerHTML = Cause_options_str;
+            div_Cause.appendChild(sel_Cause);
+
             var reset_Cause = document.createElement('div');
             reset_Cause.innerHTML = 'clear filter';
             reset_Cause.className = 'filterlabel';
@@ -481,37 +465,40 @@ div_Cause.appendChild(sel_Cause);
                 filterFunc();
             };
             div_Cause.appendChild(reset_Cause);
-            document.getElementById("menu").appendChild(
-                document.createElement("div"));
+
+            // --- HABITAT FILTER ---
+            document.getElementById("menu").appendChild(document.createElement("div"));
             var div_Habitat = document.createElement('div');
             div_Habitat.id = "div_Habitat";
             div_Habitat.className= "filterselect";
             document.getElementById("menu").appendChild(div_Habitat);
-            sel_Habitat = document.createElement('select');
-            sel_Habitat.multiple = true;
-            sel_Habitat.size = 11;
-            sel_Habitat.id = "sel_Habitat";
-            var Habitat_options_str = "";
-            sel_Habitat.onchange = function(){filterFunc()};
-            Habitat_options_str  += '<option value="Acid Grassland">Acid Grassland</option>';
-            Habitat_options_str  += '<option value="Blanket Bog">Blanket Bog</option>';
-            Habitat_options_str  += '<option value="Blanket Bog and Wet Heath">Blanket Bog and Wet Heath</option>';
-            Habitat_options_str  += '<option value="Blanket Bog, Wet & Dry Heath">Blanket Bog, Wet & Dry Heath</option>';
-            Habitat_options_str  += '<option value="Blanket Bog, Wet & Dry Heath, Wet Grassland">Blanket Bog, Wet & Dry Heath, Wet Grassland</option>';
-            Habitat_options_str  += '<option value="Blanket Bog, Wet Heath, Wet Grassland">Blanket Bog, Wet Heath, Wet Grassland</option>';
-            Habitat_options_str  += '<option value="Dry Heath">Dry Heath</option>';
-            Habitat_options_str  += '<option value="Open Woodland">Open Woodland</option>';
-            Habitat_options_str  += '<option value="Rushes">Rushes</option>';
-            Habitat_options_str  += '<option value="Wet & Dry Heath">Wet & Dry Heath</option>';
-            Habitat_options_str  += '<option value="Wet Heath">Wet Heath</option>';
-            sel_Habitat.innerHTML = Habitat_options_str;
-            
+
             var lab_Habitat = document.createElement('div');
             lab_Habitat.innerHTML = 'Habitat';
             lab_Habitat.className = 'filterlabel';
             div_Habitat.appendChild(lab_Habitat);
 
-div_Habitat.appendChild(sel_Habitat);
+            sel_Habitat = document.createElement('select');
+            sel_Habitat.multiple = true;
+            sel_Habitat.size = 11;
+            sel_Habitat.id = "sel_Habitat";
+            sel_Habitat.onchange = function(){filterFunc()};
+
+            var Habitat_options_str = "";
+            Habitat_options_str += '<option value="Acid Grassland">Acid Grassland</option>';
+            Habitat_options_str += '<option value="Blanket Bog">Blanket Bog</option>';
+            Habitat_options_str += '<option value="Blanket Bog and Wet Heath">Blanket Bog and Wet Heath</option>';
+            Habitat_options_str += '<option value="Blanket Bog, Wet & Dry Heath">Blanket Bog, Wet & Dry Heath</option>';
+            Habitat_options_str += '<option value="Blanket Bog, Wet & Dry Heath, Wet Grassland">Blanket Bog, Wet & Dry Heath, Wet Grassland</option>';
+            Habitat_options_str += '<option value="Blanket Bog, Wet Heath, Wet Grassland">Blanket Bog, Wet Heath, Wet Grassland</option>';
+            Habitat_options_str += '<option value="Dry Heath">Dry Heath</option>';
+            Habitat_options_str += '<option value="Open Woodland">Open Woodland</option>';
+            Habitat_options_str += '<option value="Rushes">Rushes</option>';
+            Habitat_options_str += '<option value="Wet & Dry Heath">Wet & Dry Heath</option>';
+            Habitat_options_str += '<option value="Wet Heath">Wet Heath</option>';
+            sel_Habitat.innerHTML = Habitat_options_str;
+            div_Habitat.appendChild(sel_Habitat);
+
             var reset_Habitat = document.createElement('div');
             reset_Habitat.innerHTML = 'clear filter';
             reset_Habitat.className = 'filterlabel';
@@ -523,29 +510,32 @@ div_Habitat.appendChild(sel_Habitat);
                 filterFunc();
             };
             div_Habitat.appendChild(reset_Habitat);
-            document.getElementById("menu").appendChild(
-                document.createElement("div"));
+
+            // --- SEVERITY FILTER ---
+            document.getElementById("menu").appendChild(document.createElement("div"));
             var div_Severity = document.createElement('div');
             div_Severity.id = "div_Severity";
             div_Severity.className= "filterselect";
             document.getElementById("menu").appendChild(div_Severity);
-            sel_Severity = document.createElement('select');
-            sel_Severity.multiple = true;
-            sel_Severity.size = 3;
-            sel_Severity.id = "sel_Severity";
-            var Severity_options_str = "";
-            sel_Severity.onchange = function(){filterFunc()};
-            Severity_options_str  += '<option value="Minor">Minor</option>';
-            Severity_options_str  += '<option value="Moderate">Moderate</option>';
-            Severity_options_str  += '<option value="Severe">Severe</option>';
-            sel_Severity.innerHTML = Severity_options_str;
-            
+
             var lab_Severity = document.createElement('div');
             lab_Severity.innerHTML = 'Severity';
             lab_Severity.className = 'filterlabel';
             div_Severity.appendChild(lab_Severity);
 
-div_Severity.appendChild(sel_Severity);
+            sel_Severity = document.createElement('select');
+            sel_Severity.multiple = true;
+            sel_Severity.size = 3;
+            sel_Severity.id = "sel_Severity";
+            sel_Severity.onchange = function(){filterFunc()};
+
+            var Severity_options_str = "";
+            Severity_options_str += '<option value="Minor">Minor</option>';
+            Severity_options_str += '<option value="Moderate">Moderate</option>';
+            Severity_options_str += '<option value="Severe">Severe</option>';
+            sel_Severity.innerHTML = Severity_options_str;
+            div_Severity.appendChild(sel_Severity);
+
             var reset_Severity = document.createElement('div');
             reset_Severity.innerHTML = 'clear filter';
             reset_Severity.className = 'filterlabel';
