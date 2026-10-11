@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+    <head>
+<script>
+  (async function() {
+    // 1. Paste your 64-character SHA-256 hash here (NOT the clear text password!)
+    const targetHash = "1c2341a758d2d56d139b7dbcbed46b841a4e7476cd0cec55ad380eef28c059d9"; 
+
+    // Helper function to calculate SHA-256 using built-in browser crypto API
+    async function hashString(str) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Prompt user
+    const userInput = prompt("This map is password protected. Please enter the password to view:");
+
+    if (userInput) {
+      const userHash = await hashString(userInput);
+      if (userHash === targetHash) {
+        return; // Password matches! Allow map to load normally.
+      }
+    }
+
+    // Block access if password was wrong or cancelled
+    alert("Incorrect password! Access denied.");
+    document.write("<h2 style='font-family:sans-serif; text-align:center; margin-top:20%; color:#d9534f;'>Access Denied: Invalid Password</h2>");
+    window.stop();
+  })();
+</script>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+        <link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #top-banner {
+            width: 100%;
+            height: 50px;
+            background-color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+
+        #top-banner h1 {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Responsive Layout Container */
+        #all {
+            height: calc(100% - 50px) !important;
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #mapWindow {
+            height: 100% !important;
+            width: 78% !important;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        #menu {
+            width: 22% !important;
+            height: 100% !important;
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        /* Mobile Adjustments (screens <= 768px) */
+        @media screen and (max-width: 768px) {
+            #top-banner {
+                height: 40px;
+            }
+            #top-banner h1 {
+                font-size: 14px;
+            }
+            #all {
+                height: calc(100% - 40px) !important;
+                flex-direction: column;
+            }
+            #mapWindow {
+                width: 100% !important;
+                height: 60% !important;
+            }
+            #menu {
+                width: 100% !important;
+                height: 40% !important;
+                padding: 8px;
+            }
+            .filterselect select {
+                width: 100% !important;
+            }
+            /* Constrain popups on touch screens */
+            .leaflet-popup-content-wrapper {
+                max-width: 260px !important;
+            }
+            .leaflet-popup-content table {
+                width: 100% !important;
+                font-size: 12px;
+            }
+        }
+        </style>
+        <title>Fires in Wicklow Mountains SAC 2016–2026</title>
+        <link rel="icon" type="image/png" href="./favicon.png">
+    </head>
+    <body>
+        <div id="top-banner">
+            <h1>Fires in Wicklow Mountains SAC 2016–2026</h1>
+        </div>
+        <div id="map"></div>
+
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet-svg-shape-markers.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/tailDT.js"></script>
+        <script src="js/nouislider.min.js"></script>
+        <script src="js/wNumb.js"></script>
+        <script src="data/WicklowMountainsSAC_1.js"></script>
+        <script src="data/SevereFires_2.js"></script>
+        <script src="data/ModerateFires_3.js"></script>
+        <script src="data/MinorFires_4.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[52.9511798020579,-6.696928927007344],[53.259669411746295,-6.118825704643118]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    var img = popup._contentNode.querySelector('td img');
+                    if (img) {
+                        if (img.complete && img.naturalHeight > 0) {
+                            popup.update();
+                        } else {
+                            img.addEventListener('load', function() { popup.update(); });
+                            img.addEventListener('error', function() { popup.update(); });
+                        }
+                    }
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "100%";
+                    video.style.height = "auto";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    video.addEventListener('loadedmetadata', function() { popup.update(); });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+
+        var zoomControl = L.control.zoom({ position: 'topleft' }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {}
+
+        map.createPane('pane_GoogleSatelliteHybrid_0');
+        map.getPane('pane_GoogleSatelliteHybrid_0').style.zIndex = 400;
+        var layer_GoogleSatelliteHybrid_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatelliteHybrid_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+        });
+        map.addLayer(layer_GoogleSatelliteHybrid_0);
+
+        function pop_WicklowMountainsSAC_1(feature, layer) {
+            var popupContent = '<table>\
+                    <tr><td colspan="2">' + (feature.properties['SITECODE'] !== null ? autolinker.link(String(feature.properties['SITECODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['SITE_NAME'] !== null ? autolinker.link(String(feature.properties['SITE_NAME']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['VERSION'] !== null ? autolinker.link(String(feature.properties['VERSION']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['COUNTY'] !== null ? autolinker.link(String(feature.properties['COUNTY']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['HA'] !== null ? autolinker.link(String(feature.properties['HA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['Source_CRS'] !== null ? autolinker.link(String(feature.properties['Source_CRS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['SourcScale'] !== null ? autolinker.link(String(feature.properties['SourcScale']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><td colspan="2">' + (feature.properties['URL'] !== null ? autolinker.link(String(feature.properties['URL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 300 });
+        }
+
+        var pattern_WicklowMountainsSAC_1_0 = new L.StripePattern({ weight: 0.3, spaceWeight: 2.0, color: '#00a4ff', opacity: 1.0, spaceOpacity: 0, angle: 225 });
+        pattern_WicklowMountainsSAC_1_0.addTo(map);
+
+        function style_WicklowMountainsSAC_1_0() {
+            return { pane: 'pane_WicklowMountainsSAC_1', stroke: false, fillOpacity: 1, fillPattern: pattern_WicklowMountainsSAC_1_0, interactive: false }
+        }
+        function style_WicklowMountainsSAC_1_1() {
+            return { pane: 'pane_WicklowMountainsSAC_1', opacity: 1, color: 'rgba(0,164,255,1.0)', dashArray: '', lineCap: 'square', lineJoin: 'bevel', weight: 2.0, fillOpacity: 0, interactive: false }
+        }
+
+        map.createPane('pane_WicklowMountainsSAC_1');
+        map.getPane('pane_WicklowMountainsSAC_1').style.zIndex = 401;
+        map.getPane('pane_WicklowMountainsSAC_1').style['mix-blend-mode'] = 'normal';
+
+        var layer_WicklowMountainsSAC_1 = new L.geoJson.multiStyle(json_WicklowMountainsSAC_1, {
+            attribution: '', interactive: false, dataVar: 'json_WicklowMountainsSAC_1', layerName: 'layer_WicklowMountainsSAC_1', pane: 'pane_WicklowMountainsSAC_1', onEachFeature: pop_WicklowMountainsSAC_1, styles: [style_WicklowMountainsSAC_1_0,style_WicklowMountainsSAC_1_1,]
+        });
+        bounds_group.addLayer(layer_WicklowMountainsSAC_1);
+        map.addLayer(layer_WicklowMountainsSAC_1);
+
+        function pop_SevereFires_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr><th scope="row">Date</th><td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Location</th><td>' + (feature.properties['Location'] !== null ? autolinker.link(String(feature.properties['Location']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Severity</th><td>' + (feature.properties['Severity'] !== null ? autolinker.link(String(feature.properties['Severity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Area Damaged (ha)</th><td>' + (feature.properties['Area Damaged (ha)'] !== null ? autolinker.link(String(feature.properties['Area Damaged (ha)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Habitat</th><td>' + (feature.properties['Habitat'] !== null ? autolinker.link(String(feature.properties['Habitat']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Cause</th><td>' + (feature.properties['Cause'] !== null ? autolinker.link(String(feature.properties['Cause']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Notes</th><td>' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 300 });
+        }
+
+        function style_SevereFires_2_0() {
+            return { pane: 'pane_SevereFires_2', shape: 'diamond', radius: 8.8, opacity: 1, color: 'rgba(128,17,25,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 2.0, fill: true, fillOpacity: 1, fillColor: 'rgba(219,30,42,1.0)', interactive: true }
+        }
+        map.createPane('pane_SevereFires_2');
+        map.getPane('pane_SevereFires_2').style.zIndex = 402;
+        map.getPane('pane_SevereFires_2').style['mix-blend-mode'] = 'normal';
+
+        var layer_SevereFires_2 = new L.geoJson(json_SevereFires_2, {
+            attribution: '', interactive: true, dataVar: 'json_SevereFires_2', layerName: 'layer_SevereFires_2', pane: 'pane_SevereFires_2', onEachFeature: pop_SevereFires_2, pointToLayer: function (feature, latlng) { return L.shapeMarker(latlng, style_SevereFires_2_0(feature)); },
+        });
+        bounds_group.addLayer(layer_SevereFires_2);
+        map.addLayer(layer_SevereFires_2);
+
+        function pop_ModerateFires_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr><th scope="row">Date</th><td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Location</th><td>' + (feature.properties['Location'] !== null ? autolinker.link(String(feature.properties['Location']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Severity</th><td>' + (feature.properties['Severity'] !== null ? autolinker.link(String(feature.properties['Severity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Area Damaged (ha)</th><td>' + (feature.properties['Area Damaged (ha)'] !== null ? autolinker.link(String(feature.properties['Area Damaged (ha)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Habitat</th><td>' + (feature.properties['Habitat'] !== null ? autolinker.link(String(feature.properties['Habitat']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Cause</th><td>' + (feature.properties['Cause'] !== null ? autolinker.link(String(feature.properties['Cause']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Notes</th><td>' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 300 });
+        }
+
+        function style_ModerateFires_3_0() {
+            return { pane: 'pane_ModerateFires_3', shape: 'diamond', radius: 8.8, opacity: 1, color: 'rgba(128,17,25,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 2.0, fill: true, fillOpacity: 1, fillColor: 'rgba(255,180,0,1.0)', interactive: true }
+        }
+        map.createPane('pane_ModerateFires_3');
+        map.getPane('pane_ModerateFires_3').style.zIndex = 403;
+        map.getPane('pane_ModerateFires_3').style['mix-blend-mode'] = 'normal';
+
+        var layer_ModerateFires_3 = new L.geoJson(json_ModerateFires_3, {
+            attribution: '', interactive: true, dataVar: 'json_ModerateFires_3', layerName: 'layer_ModerateFires_3', pane: 'pane_ModerateFires_3', onEachFeature: pop_ModerateFires_3, pointToLayer: function (feature, latlng) { return L.shapeMarker(latlng, style_ModerateFires_3_0(feature)); },
+        });
+        bounds_group.addLayer(layer_ModerateFires_3);
+        map.addLayer(layer_ModerateFires_3);
+
+        function pop_MinorFires_4(feature, layer) {
+            var popupContent = '<table>\
+                    <tr><th scope="row">Date</th><td>' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Location</th><td>' + (feature.properties['Location'] !== null ? autolinker.link(String(feature.properties['Location']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Severity</th><td>' + (feature.properties['Severity'] !== null ? autolinker.link(String(feature.properties['Severity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Area Damaged (ha)</th><td>' + (feature.properties['Area Damaged (ha)'] !== null ? autolinker.link(String(feature.properties['Area Damaged (ha)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Habitat</th><td>' + (feature.properties['Habitat'] !== null ? autolinker.link(String(feature.properties['Habitat']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Cause</th><td>' + (feature.properties['Cause'] !== null ? autolinker.link(String(feature.properties['Cause']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                    <tr><th scope="row">Notes</th><td>' + (feature.properties['Notes'] !== null ? autolinker.link(String(feature.properties['Notes']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 300 });
+        }
+
+        function style_MinorFires_4_0() {
+            return { pane: 'pane_MinorFires_4', shape: 'diamond', radius: 8.8, opacity: 1, color: 'rgba(61,128,53,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 2.0, fill: true, fillOpacity: 1, fillColor: 'rgba(25,255,0,1.0)', interactive: true }
+        }
+        map.createPane('pane_MinorFires_4');
+        map.getPane('pane_MinorFires_4').style.zIndex = 404;
+        map.getPane('pane_MinorFires_4').style['mix-blend-mode'] = 'normal';
+
+        var layer_MinorFires_4 = new L.geoJson(json_MinorFires_4, {
+            attribution: '', interactive: true, dataVar: 'json_MinorFires_4', layerName: 'layer_MinorFires_4', pane: 'pane_MinorFires_4', onEachFeature: pop_MinorFires_4, pointToLayer: function (feature, latlng) { return L.shapeMarker(latlng, style_MinorFires_4_0(feature)); },
+        });
+        bounds_group.addLayer(layer_MinorFires_4);
+        map.addLayer(layer_MinorFires_4);
+
+        var overlaysTree = [
+            {label: '<img src="legend/MinorFires_4.png" /> Minor Fires', layer: layer_MinorFires_4},
+            {label: '<img src="legend/ModerateFires_3.png" /> Moderate Fires', layer: layer_ModerateFires_3},
+            {label: '<img src="legend/SevereFires_2.png" /> Severe Fires', layer: layer_SevereFires_2},
+            {label: '<img src="legend/WicklowMountainsSAC_1.png" /> Wicklow Mountains SAC', layer: layer_WicklowMountainsSAC_1},
+            {label: "Google Satellite Hybrid", layer: layer_GoogleSatelliteHybrid_0},
+        ];
+        var lay = L.control.layers.tree(null, overlaysTree, { collapsed: true });
+        lay.addTo(map);
+        setBounds();
+
+        // Responsive DOM construction
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.id = "all";
+
+        var col1 = document.createElement('div');
+        col1.id = "mapWindow";
+
+        var col2 = document.createElement('div');
+        col2.id = "menu";
+
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv);
+
+        // Notify Leaflet of initial dimensions
+        setTimeout(function() { map.invalidateSize(); }, 200);
+
+        // --- RESET ALL FILTERS BUTTON ---
+        var reset_All = document.createElement('div');
+        reset_All.innerHTML = 'RESET ALL FILTERS';
+        reset_All.className = 'filterlabel';
+        reset_All.style.cssText = 'background-color: #d9534f !important; color: white !important; border: none !important; width: 90%; margin: 10px auto; display: block; text-align: center; padding: 8px 0; font-weight: bold; cursor: pointer; border-radius: 4px;';
+
+        reset_All.onclick = function() {
+            var yearOpts = document.getElementById("sel_Year").options;
+            for (var i = 0; i < yearOpts.length; i++) { yearOpts[i].selected = false; }
+            var causeOpts = document.getElementById("sel_Cause").options;
+            for (var i = 0; i < causeOpts.length; i++) { causeOpts[i].selected = false; }
+            var habOpts = document.getElementById("sel_Habitat").options;
+            for (var i = 0; i < habOpts.length; i++) { habOpts[i].selected = false; }
+            var sevOpts = document.getElementById("sel_Severity").options;
+            for (var i = 0; i < sevOpts.length; i++) { sevOpts[i].selected = false; }
+            filterFunc();
+        };
+
+        document.getElementById("menu").appendChild(reset_All);
+
+        var Filters = {"Year": "int","Habitat": "str","Severity": "str","Cause": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1; i >= 0; --i){
+                          if (selection.indexOf(features[i].properties[key])<0 && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){}
+                }
+                if (Filters[key] == "int"){
+                  sliderVals = document.getElementById("div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key]) < sliderVals[0] || parseInt(features[i].properties[key]) > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){}
+                }
+                if (Filters[key] == "real"){
+                  sliderVals = document.getElementById("div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key] < sliderVals[0] || features[i].properties[key] > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){}
+                }
+              }
+            } catch(err){}
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+
+        // --- YEAR FILTER ---
+        document.getElementById("menu").appendChild(document.createElement("div"));
+        var div_Year = document.createElement('div');
+        div_Year.id = "div_Year";
+        div_Year.className = "filterselect";
+        document.getElementById("menu").appendChild(div_Year);
+
+        var lab_Year = document.createElement('div');
+        lab_Year.innerHTML = 'Year';
+        lab_Year.className = 'filterlabel';
+        div_Year.appendChild(lab_Year);
+
+        sel_Year = document.createElement('select');
+        sel_Year.multiple = true;
+        sel_Year.size = 5;
+        sel_Year.id = "sel_Year";
+        sel_Year.onchange = function(){filterFunc()};
+
+        var Year_options_str = "";
+        Year_options_str += '<option value="2016">2016</option>';
+        Year_options_str += '<option value="2017">2017</option>';
+        Year_options_str += '<option value="2018">2018</option>';
+        Year_options_str += '<option value="2019">2019</option>';
+        Year_options_str += '<option value="2020">2020</option>';
+        Year_options_str += '<option value="2021">2021</option>';
+        Year_options_str += '<option value="2022">2022</option>';
+        Year_options_str += '<option value="2023">2023</option>';
+        Year_options_str += '<option value="2024">2024</option>';
+        Year_options_str += '<option value="2025">2025</option>';
+        Year_options_str += '<option value="2026">2026</option>';
+        sel_Year.innerHTML = Year_options_str;
+        div_Year.appendChild(sel_Year);
+
+        var reset_Year = document.createElement('div');
+        reset_Year.innerHTML = 'clear filter';
+        reset_Year.className = 'filterlabel';
+        reset_Year.onclick = function() {
+            var options = document.getElementById("sel_Year").options;
+            for (var i=0; i < options.length; i++) { options[i].selected = false; }
+            filterFunc();
+        };
+        div_Year.appendChild(reset_Year);
+
+        // --- HABITAT FILTER ---
+        document.getElementById("menu").appendChild(document.createElement("div"));
+        var div_Habitat = document.createElement('div');
+        div_Habitat.id = "div_Habitat";
+        div_Habitat.className= "filterselect";
+        document.getElementById("menu").appendChild(div_Habitat);
+        sel_Habitat = document.createElement('select');
+        sel_Habitat.multiple = true;
+        sel_Habitat.size = 5;
+        sel_Habitat.id = "sel_Habitat";
+        var Habitat_options_str = "<option value='' unselected></option>";
+        sel_Habitat.onchange = function(){filterFunc()};
+        Habitat_options_str  += '<option value="Acid Grassland">Acid Grassland</option>';
+        Habitat_options_str  += '<option value="Blanket Bog">Blanket Bog</option>';
+        Habitat_options_str  += '<option value="Blanket Bog and Wet Heath">Blanket Bog and Wet Heath</option>';
+        Habitat_options_str  += '<option value="Blanket Bog, Wet & Dry Heath">Blanket Bog, Wet & Dry Heath</option>';
+        Habitat_options_str  += '<option value="Blanket Bog, Wet & Dry Heath, Wet Grassland">Blanket Bog, Wet & Dry Heath, Wet Grassland</option>';
+        Habitat_options_str  += '<option value="Blanket Bog, Wet Heath, Wet Grassland">Blanket Bog, Wet Heath, Wet Grassland</option>';
+        Habitat_options_str  += '<option value="Dry Heath">Dry Heath</option>';
+        Habitat_options_str  += '<option value="Open Woodland">Open Woodland</option>';
+        Habitat_options_str  += '<option value="Rushes">Rushes</option>';
+        Habitat_options_str  += '<option value="Wet & Dry Heath">Wet & Dry Heath</option>';
+        Habitat_options_str  += '<option value="Wet Heath">Wet Heath</option>';
+        sel_Habitat.innerHTML = Habitat_options_str;
+        div_Habitat.appendChild(sel_Habitat);
+
+        var lab_Habitat = document.createElement('div');
+        lab_Habitat.innerHTML = 'Habitat';
+        lab_Habitat.className = 'filterlabel';
+        div_Habitat.appendChild(lab_Habitat);
+
+        var reset_Habitat = document.createElement('div');
+        reset_Habitat.innerHTML = 'clear filter';
+        reset_Habitat.className = 'filterlabel';
+        reset_Habitat.onclick = function() {
+            var options = document.getElementById("sel_Habitat").options;
+            for (var i=0; i < options.length; i++) { options[i].selected = false; }
+            filterFunc();
+        };
+        div_Habitat.appendChild(reset_Habitat);
+
+        // --- SEVERITY FILTER ---
+        document.getElementById("menu").appendChild(document.createElement("div"));
+        var div_Severity = document.createElement('div');
+        div_Severity.id = "div_Severity";
+        div_Severity.className= "filterselect";
+        document.getElementById("menu").appendChild(div_Severity);
+        sel_Severity = document.createElement('select');
+        sel_Severity.multiple = true;
+        sel_Severity.size = 3;
+        sel_Severity.id = "sel_Severity";
+        var Severity_options_str = "<option value='' unselected></option>";
+        sel_Severity.onchange = function(){filterFunc()};
+        Severity_options_str  += '<option value="Minor">Minor</option>';
+        Severity_options_str  += '<option value="Moderate">Moderate</option>';
+        Severity_options_str  += '<option value="Severe">Severe</option>';
+        sel_Severity.innerHTML = Severity_options_str;
+        div_Severity.appendChild(sel_Severity);
+
+        var lab_Severity = document.createElement('div');
+        lab_Severity.innerHTML = 'Severity';
+        lab_Severity.className = 'filterlabel';
+        div_Severity.appendChild(lab_Severity);
+
+        var reset_Severity = document.createElement('div');
+        reset_Severity.innerHTML = 'clear filter';
+        reset_Severity.className = 'filterlabel';
+        reset_Severity.onclick = function() {
+            var options = document.getElementById("sel_Severity").options;
+            for (var i=0; i < options.length; i++) { options[i].selected = false; }
+            filterFunc();
+        };
+        div_Severity.appendChild(reset_Severity);
+
+        // --- CAUSE FILTER ---
+        document.getElementById("menu").appendChild(document.createElement("div"));
+        var div_Cause = document.createElement('div');
+        div_Cause.id = "div_Cause";
+        div_Cause.className= "filterselect";
+        document.getElementById("menu").appendChild(div_Cause);
+        sel_Cause = document.createElement('select');
+        sel_Cause.multiple = true;
+        sel_Cause.size = 2;
+        sel_Cause.id = "sel_Cause";
+        var Cause_options_str = "<option value='' unselected></option>";
+        sel_Cause.onchange = function(){filterFunc()};
+        Cause_options_str  += '<option value="Accidental/Negligence">Accidental/Negligence</option>';
+        Cause_options_str  += '<option value="Agricultural">Agricultural</option>';
+        sel_Cause.innerHTML = Cause_options_str;
+        div_Cause.appendChild(sel_Cause);
+
+        var lab_Cause = document.createElement('div');
+        lab_Cause.innerHTML = 'Cause';
+        lab_Cause.className = 'filterlabel';
+        div_Cause.appendChild(lab_Cause);
+
+        var reset_Cause = document.createElement('div');
+        reset_Cause.innerHTML = 'clear filter';
+        reset_Cause.className = 'filterlabel';
+        reset_Cause.onclick = function() {
+            var options = document.getElementById("sel_Cause").options;
+            for (var i=0; i < options.length; i++) { options[i].selected = false; }
+            filterFunc();
+        };
+        div_Cause.appendChild(reset_Cause);
+        </script>        
+    </body>
+</html>
