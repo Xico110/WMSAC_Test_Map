@@ -570,7 +570,7 @@ var chartContainer = document.createElement('div');
 chartContainer.id = 'chart-container';
 chartContainer.innerHTML = `
   <div style="margin-bottom:8px; text-align:left;">
-    <label for="chartGroupBy" style="font-size:12px; font-weight:bold;">Graph by:</label>
+    <label for="chartGroupBy" style="font-size:12px; font-weight:bold;">Chart by:</label>
     <select id="chartGroupBy" style="width:100%; padding:4px; font-size:12px;">
       <option value="Severity" selected>Severity</option>
       <option value="Year">Year</option>
@@ -578,8 +578,8 @@ chartContainer.innerHTML = `
       <option value="Habitat">Habitat</option>
     </select>
   </div>
-  <canvas id="fireChart" width="240" height="200"></canvas>
-  <button id="downloadChartBtn">Download Graph</button>
+  <canvas id="fireChart" width="1200" height="1000" style="width: 100%; max-width: 260px; height: auto; display: block; margin: 0 auto;"></canvas>
+  <button id="downloadChartBtn">Download Chart</button>
 `;
 document.getElementById("menu").appendChild(chartContainer);
 
@@ -592,22 +592,22 @@ document.getElementById('chartGroupBy').addEventListener('change', function() {
 
         var Filters = {"Year": "str", "Habitat": "str", "Severity": "str", "Cause": "str"};
 
-        function drawPureCanvasChart(activeFeatures) {
+       function drawPureCanvasChart(activeFeatures) {
     const canvas = document.getElementById('fireChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
+    const w = canvas.width;  // 1200px
+    const h = canvas.height; // 1000px
 
-    // Reset Canvas
+    // Reset Canvas background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
-    // Determine what field to group by
+    // Determine field to group by
     const groupBySelect = document.getElementById('chartGroupBy');
     const groupByField = groupBySelect ? groupBySelect.value : 'Severity';
 
-    // Count occurrences for active features
+    // Count occurrences
     const counts = {};
     activeFeatures.forEach(function(f) {
         var val = f.properties[groupByField] || 'Unknown';
@@ -617,54 +617,76 @@ document.getElementById('chartGroupBy').addEventListener('change', function() {
     const categories = Object.keys(counts);
     if (categories.length === 0) {
         ctx.fillStyle = '#666666';
-        ctx.font = '12px sans-serif';
+        ctx.font = 'bold 40px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('No data available', w / 2, h / 2);
         return;
     }
 
-    // Title
+    // Title (Larger font for clear sidebar preview)
     ctx.fillStyle = '#333333';
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = 'bold 52px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Incidents by ' + groupByField, w / 2, 16);
+    ctx.fillText('Incidents by ' + groupByField, w / 2, 80);
 
-    // Color palette generator for dynamic categories
-    const palette = ['#e5cd1f', '#ff7f00', '#db1e2a', '#0275d8', '#5cb85c', '#5bc0de', '#f0ad4e', '#d9534f'];
+    // Color mapping for Severity + fallback palette for other attributes
+    const severityColors = {
+        'Minor': '#e5cd1f',    // Yellow
+        'Moderate': '#ff7f00', // Orange
+        'Severe': '#db1e2a'    // Red
+    };
+    const defaultPalette = ['#0275d8', '#5cb85c', '#5bc0de', '#f0ad4e', '#9c27b0', '#e91e63'];
 
     const maxVal = Math.max(...Object.values(counts), 1);
-    const chartTop = 35;
-    const chartBottom = h - 30;
+    
+    // Adjusted layout boundaries to make room for larger x-axis labels
+    const chartTop = 180;
+    const chartBottom = h - 220; 
     const chartHeight = chartBottom - chartTop;
 
-    // Calculate layout dynamically
-    const barWidth = Math.max(12, Math.floor((w - 40) / categories.length) - 8);
-    const totalSpacing = w - 30 - (barWidth * categories.length);
+    const sideMargin = 100;
+    const availableWidth = w - (sideMargin * 2);
+    const barWidth = Math.max(50, Math.floor(availableWidth / categories.length) - 40);
+    const totalSpacing = availableWidth - (barWidth * categories.length);
     const gap = categories.length > 1 ? totalSpacing / (categories.length - 1) : 0;
 
     categories.forEach(function(label, i) {
         const val = counts[label];
-        const x = 15 + i * (barWidth + gap);
-        const barH = (val / maxVal) * (chartHeight - 15);
+        const x = sideMargin + i * (barWidth + gap);
+        const barH = (val / maxVal) * (chartHeight - 80);
         const y = chartBottom - barH;
 
-        // Draw bar
-        ctx.fillStyle = palette[i % palette.length];
+        // Assign exact color if Severity, otherwise pick from palette
+        if (groupByField === 'Severity' && severityColors[label]) {
+            ctx.fillStyle = severityColors[label];
+        } else {
+            ctx.fillStyle = defaultPalette[i % defaultPalette.length];
+        }
+
+        // Draw Bar
         ctx.fillRect(x, y, barWidth, barH);
 
-        // Draw Value above bar
+        // Value above bar
         ctx.fillStyle = '#000000';
-        ctx.font = '10px sans-serif';
+        ctx.font = 'bold 44px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(val, x + barWidth / 2, y - 3);
+        ctx.fillText(val, x + barWidth / 2, y - 20);
 
-        // Draw Label below bar (truncated if too long)
-        const displayLabel = label.length > 8 ? label.substring(0, 7) + '…' : label;
+        // Label below bar
+        const displayLabel = label.length > 14 ? label.substring(0, 12) + '…' : label;
         ctx.save();
-        ctx.translate(x + barWidth / 2, chartBottom + 12);
+        ctx.font = 'bold 42px sans-serif';
+        ctx.fillStyle = '#222222';
+        ctx.translate(x + barWidth / 2, chartBottom + 60);
+
+        // Slant text if there are many categories
         if (categories.length > 4) {
-            ctx.rotate(-Math.PI / 6); // Slanted text for tight spaces
+            ctx.rotate(-Math.PI / 5);
+            ctx.textAlign = 'right';
+        } else {
+            ctx.textAlign = 'center';
         }
+
         ctx.fillText(displayLabel, 0, 0);
         ctx.restore();
     });
